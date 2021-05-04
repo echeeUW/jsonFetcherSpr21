@@ -1,14 +1,12 @@
 package edu.uw.echee.jsonfetcherspr21
 
-import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
 import android.util.Log
-import android.widget.Toast
+import androidx.appcompat.app.AppCompatActivity
 import com.google.gson.Gson
 import edu.uw.echee.jsonfetcherspr21.databinding.ActivityMainBinding
-import edu.uw.echee.jsonfetcherspr21.model.Email
-import org.json.JSONObject
-import java.lang.Exception
+import edu.uw.echee.jsonfetcherspr21.model.Inbox
+import java.net.URL
 
 class MainActivity : AppCompatActivity() {
     private lateinit var binding: ActivityMainBinding
@@ -21,90 +19,63 @@ class MainActivity : AppCompatActivity() {
         with(binding) {
 
             btnFetchJson.setOnClickListener {
-                fetchIndividualEmailWithGson()
+                fetchInboxWithGson()
+            }
+
+            btnClear.setOnClickListener {
+                log("Received click")
+                tvOutput.text = "This is a reset of code"
             }
 
         }
     }
 
-    private fun fetchMultipleEmailsJson() {
-        // Parse a json manually
+    private fun fetchInboxWithGson() {
 
-        runCatching {
-            val emailsJson = JSONObject(emailsJsonString)
+        val task = Runnable {
+            // Fetch json string from URL - fetching manually on Background thread
+            val emailsJsonString = URL("https://raw.githubusercontent.com/echeeUW/codesnippets/master/emails.json").readText()
 
-            if (emailsJson.has("title")) {
-                val title = emailsJson.getString("title")
-                Log.i("echee", "Title is: $title")
-                binding.tvOutput.text = "Title is: $title"
+            // Take JsonString response and convert it to our model class Inbox
+            val inbox: Inbox = gson.fromJson(emailsJsonString, Inbox::class.java)
+
+            // Switch back to main thread to show data on UI
+            runOnUiThread {
+                binding.tvOutput.text = inbox.toString()
             }
 
-            if (emailsJson.has("emails")) {
-                val emailsArray = emailsJson.getJSONArray("emails")
-
-                for (index in 0 until emailsArray.length()) {
-                    val curEmail = emailsArray.getJSONObject(index)
-                    Log.i("echee", "curEmail: $curEmail")
-                }
-            }
-        }.onFailure {
-            Toast.makeText(this, "Invalid json", Toast.LENGTH_SHORT).show()
-        }.onSuccess {
-            Log.i("echee", "Valid json")
+            log("Inbox Title is: ${inbox.title} and the object it created: $inbox")
         }
+
+        // Create + Launch Background thread task
+        val backgroundThread = Thread(task)
+        backgroundThread.start()
     }
 
-    private fun fetchIndividualEmailWithGson() {
-        val email = gson.fromJson(emailJsonString, Email::class.java)
+    /**
+     * Helper function for simple logging
+     */
+    private fun log(msg: String) = Log.i("MainActivity", msg)
 
-        val content = email.content
+//    private fun fakeDelayOnBackgroundThread() {
+//        val task = Runnable {
+//            fakeNetworkDelay()
+//            fetchInboxWithGson()
+//        }
+//
+//        val backgroundThread = Thread(task)
+//        backgroundThread.start()
+//
+//    }
+//
+//    private fun fakeNetworkDelay() {
+//        repeat(5) { count ->
+//            log("Delay: $count")
+//            Thread.sleep(1000) // don't ever do this in production
+//        }
+//    }
 
-        val lengthOFFrom = email.from.length
 
-        binding.tvOutput.text = "Content: $content"
-    }
 }
-
-private val emailJsonString = """
-    {
-        "id": 0,
-        "from": "seahawks@gmail.com",
-        "content": "Go Hawks!!! SEA!! HAWKSSS!!!! Go 12s! Legion of boom",
-        "isImportant": true
-    }
-""".trimIndent()
-
-private val emailsJsonString = """
-    {
-        "title": "Mailed It - App",
-
-    	"emails": [
-    		{
-    			"id": 0,
-    			"from": "seahawks@gmail.com",
-    			"content": "Go Hawks!!! SEA!! HAWKSSS!!!! Go 12s! Legion of boom",
-    			"isImportant": true
-    		},
-    		{
-    			"id": 1,
-    			"from": "49ers@hotmail.com",
-    			"content": "Let's go Niners!!! Richard Sherman interception! Ay bay bay",
-    			"isImportant": false
-    		},
-    		{
-    			"id": 2,
-    			"from": "patriots@aol.com",
-    			"content": "We like flat footballs and spy cameras",
-    			"isImportant": false
-    		},
-    		{
-    			"id": 3,
-    			"from": "tony@starkindustries.com",
-    			"content": "I am Iron-Man and I love cheeseburgers. I love you 3000",
-    			"isImportant": true
-    		}
-    	]
-    }
-""".trimIndent()
 
 
